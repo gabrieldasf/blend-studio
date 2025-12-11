@@ -1,7 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AudioResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get initialized AI client
+const getGenAI = () => {
+    const apiKey = localStorage.getItem('gemini_api_key') || process.env.API_KEY;
+    if (!apiKey) {
+        throw new Error("Chave de API não encontrada. Por favor, configure sua chave no menu Configurações.");
+    }
+    return new GoogleGenAI({ apiKey });
+};
 
 // 6MB chunks to be safe with browser request limits and base64 overhead
 const CHUNK_SIZE = 6 * 1024 * 1024; 
@@ -27,6 +34,7 @@ const blobToGenerativePart = async (blob: Blob, mimeType: string): Promise<{ inl
 
 const transcribeChunk = async (chunk: Blob, mimeType: string, index: number, total: number): Promise<string> => {
   try {
+    const ai = getGenAI();
     const audioPart = await blobToGenerativePart(chunk, mimeType);
     
     // Prompt specific for pure transcription of a segment
@@ -68,6 +76,7 @@ const generateFinalSummary = async (fullTranscription: string): Promise<string> 
         return "Áudio insuficiente para gerar um resumo detalhado.";
     }
 
+    const ai = getGenAI();
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: {
@@ -101,6 +110,9 @@ export const processAudioWithGemini = async (
     onProgress: (current: number, total: number) => void
 ): Promise<AudioResult> => {
   try {
+    // Validate API Key existence before starting
+    getGenAI();
+
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     let fullTranscription = "";
 
@@ -114,8 +126,6 @@ export const processAudioWithGemini = async (
         onProgress(i + 1, totalChunks);
 
         // Transcribe this specific chunk
-        // Note: We keep the original file type hint for Gemini, even though slicing MP3s technically breaks headers. 
-        // Gemini's decoders are usually robust enough to handle ADTS streams.
         const chunkText = await transcribeChunk(chunk, file.type, i, totalChunks);
         
         fullTranscription += chunkText + " ";
@@ -124,7 +134,6 @@ export const processAudioWithGemini = async (
     fullTranscription = fullTranscription.trim();
 
     // 2. Final Summarization
-    // Now that we have the full text, we ask Gemini to summarize the whole context
     onProgress(totalChunks, totalChunks); // Ensure UI shows 100% before summary
     
     const summary = await generateFinalSummary(fullTranscription);

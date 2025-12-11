@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dropzone } from './components/Dropzone';
 import { ResultCard } from './components/ResultCard';
+import { Settings } from './components/Settings';
 import { AudioItem, ProcessStatus } from './types';
 import { processAudioWithGemini } from './services/geminiService';
 import { 
@@ -12,8 +13,11 @@ import {
     IconInfinity
 } from '@tabler/icons-react';
 
+type ViewState = 'library' | 'settings';
+
 const App: React.FC = () => {
   const [items, setItems] = useState<AudioItem[]>([]);
+  const [currentView, setCurrentView] = useState<ViewState>('library');
 
   const handleFilesAdded = useCallback((files: File[]) => {
     const newItems: AudioItem[] = files.map(file => ({
@@ -25,13 +29,14 @@ const App: React.FC = () => {
       totalChunks: 0,
     }));
     setItems(prev => [...prev, ...newItems]);
+    setCurrentView('library'); // Switch back to library when files added
   }, []);
 
   const handleRemoveItem = useCallback((id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
   }, []);
 
-  // Processing Loop (Same logic as before)
+  // Processing Loop
   useEffect(() => {
     const processQueue = async () => {
       const idleItems = items.filter(item => item.status === ProcessStatus.IDLE);
@@ -81,14 +86,28 @@ const App: React.FC = () => {
 
         {/* Sidebar Menu */}
         <nav className="flex-1 p-2 space-y-0.5">
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-sm bg-gray-4 text-gray-12 font-medium text-sm cursor-pointer">
-                <IconFolder size={16} className="text-gray-11" />
+            <button 
+                onClick={() => setCurrentView('library')}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-sm font-medium text-sm cursor-pointer transition-colors ${
+                    currentView === 'library' 
+                    ? 'bg-gray-4 text-gray-12' 
+                    : 'text-gray-9 hover:bg-gray-3 hover:text-gray-12'
+                }`}
+            >
+                <IconFolder size={16} className={currentView === 'library' ? 'text-gray-12' : 'text-gray-9'} />
                 <span>Biblioteca</span>
-            </div>
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-gray-9 hover:bg-gray-3 hover:text-gray-12 font-medium text-sm cursor-pointer transition-colors">
-                <IconSettings size={16} className="text-gray-9" />
+            </button>
+            <button 
+                onClick={() => setCurrentView('settings')}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-sm font-medium text-sm cursor-pointer transition-colors ${
+                    currentView === 'settings' 
+                    ? 'bg-gray-4 text-gray-12' 
+                    : 'text-gray-9 hover:bg-gray-3 hover:text-gray-12'
+                }`}
+            >
+                <IconSettings size={16} className={currentView === 'settings' ? 'text-gray-12' : 'text-gray-9'} />
                 <span>Configurações</span>
-            </div>
+            </button>
         </nav>
 
         {/* Sidebar Footer */}
@@ -109,17 +128,21 @@ const App: React.FC = () => {
                 <button className="md:hidden p-1 text-gray-9">
                     <IconLayoutSidebarLeftCollapse size={20} />
                 </button>
-                <h1 className="text-md font-medium text-gray-12">Meus Arquivos</h1>
+                <h1 className="text-md font-medium text-gray-12">
+                    {currentView === 'library' ? 'Meus Arquivos' : 'Configurações'}
+                </h1>
             </div>
 
             <div className="flex items-center gap-2">
-                 <button 
-                    onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
-                    className="h-8 px-3 flex items-center gap-1.5 bg-blue text-white text-sm font-medium rounded-sm hover:bg-blue-10 transition-colors shadow-sm"
-                 >
-                    <IconPlus size={16} stroke={2.5} />
-                    <span>Novo Upload</span>
-                 </button>
+                 {currentView === 'library' && (
+                     <button 
+                        onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
+                        className="h-8 px-3 flex items-center gap-1.5 bg-blue text-white text-sm font-medium rounded-sm hover:bg-blue-10 transition-colors shadow-sm"
+                     >
+                        <IconPlus size={16} stroke={2.5} />
+                        <span>Novo Upload</span>
+                     </button>
+                 )}
             </div>
         </header>
 
@@ -127,45 +150,51 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="max-w-4xl mx-auto flex flex-col gap-6">
                 
-                {/* Upload Section */}
-                <section>
-                    <Dropzone onFilesAdded={handleFilesAdded} />
-                </section>
+                {currentView === 'library' ? (
+                    <>
+                        {/* Upload Section */}
+                        <section>
+                            <Dropzone onFilesAdded={handleFilesAdded} />
+                        </section>
 
-                {/* List Section */}
-                <section className="flex flex-col gap-2">
-                    {items.length > 0 && (
-                        <div className="flex items-center justify-between mb-2">
-                             <h2 className="text-sm font-medium text-gray-9 uppercase tracking-wide">
-                                Recentes
-                             </h2>
-                             <button 
-                                onClick={() => setItems([])} 
-                                className="text-xs font-medium text-gray-9 hover:text-red-9 transition-colors"
-                             >
-                                Limpar
-                             </button>
-                        </div>
-                    )}
+                        {/* List Section */}
+                        <section className="flex flex-col gap-2">
+                            {items.length > 0 && (
+                                <div className="flex items-center justify-between mb-2">
+                                     <h2 className="text-sm font-medium text-gray-9 uppercase tracking-wide">
+                                        Recentes
+                                     </h2>
+                                     <button 
+                                        onClick={() => setItems([])} 
+                                        className="text-xs font-medium text-gray-9 hover:text-red-9 transition-colors"
+                                     >
+                                        Limpar
+                                     </button>
+                                </div>
+                            )}
 
-                    {items.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-gray-5 rounded-md bg-gray-1">
-                            <div className="h-10 w-10 rounded-full bg-gray-3 flex items-center justify-center mb-3">
-                                <IconFolder size={20} className="text-gray-8" />
-                            </div>
-                            <p className="text-sm text-gray-11 font-medium">Nenhum áudio processado</p>
-                            <p className="text-xs text-gray-9 mt-1">Seus arquivos aparecerão aqui</p>
-                        </div>
-                    ) : (
-                        items.map(item => (
-                            <ResultCard 
-                                key={item.id} 
-                                item={item} 
-                                onRemove={handleRemoveItem} 
-                            />
-                        ))
-                    )}
-                </section>
+                            {items.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-gray-5 rounded-md bg-gray-1">
+                                    <div className="h-10 w-10 rounded-full bg-gray-3 flex items-center justify-center mb-3">
+                                        <IconFolder size={20} className="text-gray-8" />
+                                    </div>
+                                    <p className="text-sm text-gray-11 font-medium">Nenhum áudio processado</p>
+                                    <p className="text-xs text-gray-9 mt-1">Seus arquivos aparecerão aqui</p>
+                                </div>
+                            ) : (
+                                items.map(item => (
+                                    <ResultCard 
+                                        key={item.id} 
+                                        item={item} 
+                                        onRemove={handleRemoveItem} 
+                                    />
+                                ))
+                            )}
+                        </section>
+                    </>
+                ) : (
+                    <Settings />
+                )}
             </div>
         </main>
       </div>
