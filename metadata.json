@@ -1,0 +1,5 @@
+{
+  "name": "Blend Studio",
+  "description": "Ferramenta profissional de transcrição e resumo de áudio alimentada pelo Gemini 2.5.",
+  "requestFramePermissions": []
+}
