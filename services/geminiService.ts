@@ -148,3 +148,35 @@ export const processAudioWithGemini = async (
     throw new Error(error.message || "Falha ao processar o áudio.");
   }
 };
+
+export const generateMockup = async (imageFile: File, prompt: string): Promise<string> => {
+    const ai = getGenAI();
+    const imagePart = await blobToGenerativePart(imageFile, imageFile.type);
+
+    const fullPrompt = `Create a high-quality, photorealistic product mockup. 
+    Scene description: ${prompt}.
+    Crucial instruction: You must seamlessly integrate the visual pattern/logo provided in the image input onto the product surface mentioned in the scene. 
+    The lighting and shadows should look natural. The style should be professional photography.`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+            parts: [
+                imagePart,
+                { text: fullPrompt }
+            ]
+        }
+    });
+
+    // The response for image generation might contain the image in inlineData
+    // Iterate through parts to find the image
+    if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+    }
+    
+    throw new Error("Não foi possível gerar a imagem. Tente novamente.");
+};

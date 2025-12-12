@@ -1,3 +1,4 @@
+
 export enum ProcessStatus {
   IDLE = 'IDLE',
   PROCESSING = 'PROCESSING',
@@ -19,4 +20,15 @@ export interface AudioItem {
   uploadProgress: number; // Simulated progress for UX
   currentChunk?: number;
   totalChunks?: number;
+}
+
+export interface MockupItem {
+    id: string;
+    originalFile: File;
+    previewUrl: string; // The URL of the uploaded logo/art
+    prompt: string;
+    status: ProcessStatus;
+    resultUrl?: string; // The URL of the generated mockup
+    error?: string;
+    createdAt: number;
 }

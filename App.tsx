@@ -1,104 +1,82 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Dropzone } from './components/Dropzone';
-import { ResultCard } from './components/ResultCard';
+import React, { useState } from 'react';
 import { Settings } from './components/Settings';
-import { AudioItem, ProcessStatus } from './types';
-import { processAudioWithGemini } from './services/geminiService';
+import { TranscriberView } from './components/TranscriberView';
+import { MockupGenerator } from './components/MockupGenerator';
 import { 
     IconMicrophone, 
-    IconFolder, 
     IconSettings, 
     IconLayoutSidebarLeftCollapse,
-    IconPlus,
-    IconInfinity
+    IconInfinity,
+    IconShirt
 } from '@tabler/icons-react';
 
-type ViewState = 'library' | 'settings';
+type ViewState = 'transcriber' | 'mockup' | 'settings';
 
 const App: React.FC = () => {
-  const [items, setItems] = useState<AudioItem[]>([]);
-  const [currentView, setCurrentView] = useState<ViewState>('library');
+  const [currentView, setCurrentView] = useState<ViewState>('transcriber');
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleFilesAdded = useCallback((files: File[]) => {
-    const newItems: AudioItem[] = files.map(file => ({
-      id: Math.random().toString(36).substring(7),
-      file,
-      status: ProcessStatus.IDLE,
-      uploadProgress: 0,
-      currentChunk: 0,
-      totalChunks: 0,
-    }));
-    setItems(prev => [...prev, ...newItems]);
-    setCurrentView('library'); // Switch back to library when files added
-  }, []);
-
-  const handleRemoveItem = useCallback((id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-  }, []);
-
-  // Processing Loop
-  useEffect(() => {
-    const processQueue = async () => {
-      const idleItems = items.filter(item => item.status === ProcessStatus.IDLE);
-      if (idleItems.length === 0) return;
-
-      setItems(prev => prev.map(item => 
-        item.status === ProcessStatus.IDLE ? { ...item, status: ProcessStatus.PROCESSING } : item
-      ));
-
-      idleItems.forEach(async (item) => {
-        try {
-          const result = await processAudioWithGemini(
-            item.file,
-            (current, total) => {
-                setItems(prev => prev.map(prevItem => 
-                    prevItem.id === item.id 
-                    ? { ...prevItem, currentChunk: current, totalChunks: total } 
-                    : prevItem
-                ));
-            }
-          );
-          setItems(prev => prev.map(prevItem => 
-            prevItem.id === item.id ? { ...prevItem, status: ProcessStatus.COMPLETED, result } : prevItem
-          ));
-        } catch (error: any) {
-          setItems(prev => prev.map(prevItem => 
-            prevItem.id === item.id ? { ...prevItem, status: ProcessStatus.ERROR, error: error.message || 'Erro' } : prevItem
-          ));
-        }
-      });
-    };
-    processQueue();
-  }, [items]);
+  // Helper to close sidebar on mobile when navigating
+  const navigateTo = (view: ViewState) => {
+    setCurrentView(view);
+    setSidebarOpen(false);
+  };
 
   return (
     <div className="flex h-screen w-full bg-gray-2 text-gray-12 font-sans overflow-hidden">
       
       {/* Navigation Drawer (Sidebar) */}
-      <aside className="w-60 bg-gray-2 border-r border-gray-6 flex flex-col hidden md:flex">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-60 bg-gray-2 border-r border-gray-6 flex flex-col transition-transform duration-200 ease-in-out md:relative md:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         {/* Sidebar Header */}
         <div className="h-14 px-3 flex items-center gap-2 border-b border-gray-4">
             <div className="h-6 w-6 rounded-sm bg-blue text-white flex items-center justify-center">
-                <IconMicrophone size={16} stroke={2.5} />
+                <IconInfinity size={16} stroke={2.5} />
             </div>
             <span className="font-semibold text-sm text-gray-12 tracking-tight">Blend Studio</span>
+            <button className="md:hidden ml-auto p-1" onClick={() => setSidebarOpen(false)}>
+                <IconLayoutSidebarLeftCollapse size={18} />
+            </button>
         </div>
 
         {/* Sidebar Menu */}
         <nav className="flex-1 p-2 space-y-0.5">
+            <div className="px-2 py-1.5 text-xs font-semibold text-gray-9 uppercase tracking-wider">
+                Ferramentas
+            </div>
+            
             <button 
-                onClick={() => setCurrentView('library')}
+                onClick={() => navigateTo('transcriber')}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-sm font-medium text-sm cursor-pointer transition-colors ${
-                    currentView === 'library' 
+                    currentView === 'transcriber' 
                     ? 'bg-gray-4 text-gray-12' 
                     : 'text-gray-9 hover:bg-gray-3 hover:text-gray-12'
                 }`}
             >
-                <IconFolder size={16} className={currentView === 'library' ? 'text-gray-12' : 'text-gray-9'} />
-                <span>Biblioteca</span>
+                <IconMicrophone size={16} className={currentView === 'transcriber' ? 'text-gray-12' : 'text-gray-9'} />
+                <span>Transcritor</span>
             </button>
+            
             <button 
-                onClick={() => setCurrentView('settings')}
+                onClick={() => navigateTo('mockup')}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-sm font-medium text-sm cursor-pointer transition-colors ${
+                    currentView === 'mockup' 
+                    ? 'bg-gray-4 text-gray-12' 
+                    : 'text-gray-9 hover:bg-gray-3 hover:text-gray-12'
+                }`}
+            >
+                <IconShirt size={16} className={currentView === 'mockup' ? 'text-gray-12' : 'text-gray-9'} />
+                <span>Mockups</span>
+            </button>
+
+            <div className="px-2 py-1.5 mt-4 text-xs font-semibold text-gray-9 uppercase tracking-wider">
+                Sistema
+            </div>
+
+            <button 
+                onClick={() => navigateTo('settings')}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-sm font-medium text-sm cursor-pointer transition-colors ${
                     currentView === 'settings' 
                     ? 'bg-gray-4 text-gray-12' 
@@ -119,82 +97,38 @@ const App: React.FC = () => {
         </div>
       </aside>
 
+      {/* Overlay for mobile */}
+      {isSidebarOpen && (
+        <div 
+            className="fixed inset-0 bg-black/20 z-40 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Default Layout Content */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-2">
         
         {/* Page Header */}
-        <header className="h-14 px-4 md:px-6 flex items-center justify-between bg-gray-1 border-b border-gray-4 shrink-0">
-            <div className="flex items-center gap-3">
-                <button className="md:hidden p-1 text-gray-9">
-                    <IconLayoutSidebarLeftCollapse size={20} />
-                </button>
-                <h1 className="text-md font-medium text-gray-12">
-                    {currentView === 'library' ? 'Meus Arquivos' : 'Configurações'}
-                </h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-                 {currentView === 'library' && (
-                     <button 
-                        onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
-                        className="h-8 px-3 flex items-center gap-1.5 bg-blue text-white text-sm font-medium rounded-sm hover:bg-blue-10 transition-colors shadow-sm"
-                     >
-                        <IconPlus size={16} stroke={2.5} />
-                        <span>Novo Upload</span>
-                     </button>
-                 )}
-            </div>
+        <header className="h-14 px-4 md:px-6 flex items-center gap-3 bg-gray-1 border-b border-gray-4 shrink-0">
+            <button 
+                className="md:hidden p-1 text-gray-9 -ml-2"
+                onClick={() => setSidebarOpen(true)}
+            >
+                <IconLayoutSidebarLeftCollapse size={20} className="rotate-180" />
+            </button>
+            <h1 className="text-md font-medium text-gray-12">
+                {currentView === 'transcriber' && 'Transcritor de Áudio'}
+                {currentView === 'mockup' && 'Gerador de Mockups'}
+                {currentView === 'settings' && 'Configurações'}
+            </h1>
         </header>
 
         {/* Page Body */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-            <div className="max-w-4xl mx-auto flex flex-col gap-6">
-                
-                {currentView === 'library' ? (
-                    <>
-                        {/* Upload Section */}
-                        <section>
-                            <Dropzone onFilesAdded={handleFilesAdded} />
-                        </section>
-
-                        {/* List Section */}
-                        <section className="flex flex-col gap-2">
-                            {items.length > 0 && (
-                                <div className="flex items-center justify-between mb-2">
-                                     <h2 className="text-sm font-medium text-gray-9 uppercase tracking-wide">
-                                        Recentes
-                                     </h2>
-                                     <button 
-                                        onClick={() => setItems([])} 
-                                        className="text-xs font-medium text-gray-9 hover:text-red-9 transition-colors"
-                                     >
-                                        Limpar
-                                     </button>
-                                </div>
-                            )}
-
-                            {items.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-gray-5 rounded-md bg-gray-1">
-                                    <div className="h-10 w-10 rounded-full bg-gray-3 flex items-center justify-center mb-3">
-                                        <IconFolder size={20} className="text-gray-8" />
-                                    </div>
-                                    <p className="text-sm text-gray-11 font-medium">Nenhum áudio processado</p>
-                                    <p className="text-xs text-gray-9 mt-1">Seus arquivos aparecerão aqui</p>
-                                </div>
-                            ) : (
-                                items.map(item => (
-                                    <ResultCard 
-                                        key={item.id} 
-                                        item={item} 
-                                        onRemove={handleRemoveItem} 
-                                    />
-                                ))
-                            )}
-                        </section>
-                    </>
-                ) : (
-                    <Settings />
-                )}
+            <div className="max-w-5xl mx-auto">
+                {currentView === 'transcriber' && <TranscriberView />}
+                {currentView === 'mockup' && <MockupGenerator />}
+                {currentView === 'settings' && <Settings />}
             </div>
         </main>
       </div>
